@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>钢铁洪流 · 欧陆战棋</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <main id="stage">
+    <canvas id="map"></canvas>
+
+    <div class="hud hud-top">
+      <div class="turn-plate">
+        <div class="turn-faction" id="hudFaction">革命联盟</div>
+        <div class="turn-line"><span id="hudTurn">第 1 回合</span><i></i><span id="hudPhase">你的回合</span></div>
+      </div>
+      <div class="objective" id="hudObjective">目标：攻占黑堡</div>
+      <div class="strategy-line" id="hudStrategy"></div>
+    </div>
+
+    <div class="hud hud-tools">
+      <button class="ai-status-btn hidden" id="btnAIStatus" title="查看 AI 经济、据点与兵力">AI 状态</button>
+      <button class="icon-btn" id="btnSound" title="音效开关">♪</button>
+      <button class="icon-btn" id="btnHelp2" title="作战手册">?</button>
+      <button class="icon-btn" id="btnFit" title="全图视野">⛶</button>
+    </div>
+
+    <div class="hud hud-bottom">
+      <div class="hint" id="hint">拖动地图 · 滚轮缩放 · 点击部队开始行动</div>
+      <button class="end-turn" id="btnEndTurn">
+        <span class="et-main">结束回合</span>
+        <span class="et-sub">SPACE</span>
+      </button>
+    </div>
+
+    <div class="turn-banner" id="turnBanner"></div>
+    <div id="toast"></div>
+  </main>
+
+  <aside id="panel">
+    <div class="panel-head">
+      <div class="brand">
+        <span class="brand-cn">钢铁洪流</span>
+        <span class="brand-en">STEEL TIDE · 1944</span>
+      </div>
+    </div>
+
+
+    <div class="res-row">
+      <div class="res"><span class="res-ico gold">◈</span><div><b id="resGold">0</b><span id="resGoldInc">+0</span></div><em>金钱</em></div>
+      <div class="res"><span class="res-ico pop">人</span><div><b id="resPop">0 / 0</b><span id="resPopInc">已占用 / 上限</span></div><em>人力</em></div>
+      <div class="res"><span class="res-ico ind">工</span><div><b id="resInd">0 / 0</b><span id="resIndInc">已占用 / 上限</span></div><em>工业</em></div>
+    </div>
+
+    <div class="context" id="contextPanel">
+      <div class="ctx-empty">
+        <div class="ctx-emblem">⌖</div>
+        <p>选中一支部队，或点击城市查看详情。</p>
+      </div>
+    </div>
+
+    <div class="log-block">
+      <div class="log-head"><span>战 报</span><span class="log-line"></span></div>
+      <div class="log-list" id="logList"></div>
+    </div>
+
+    <div class="panel-foot">
+      <button class="btn ghost" id="btnSave">保存进度</button>
+      <button class="btn ghost" id="btnNew">新战役</button>
+    </div>
+  </aside>
+</div>
+
+<!-- ================= 开始界面 ================= -->
+<div id="startScreen" class="overlay">
+  <div class="start-card">
+    <div class="start-kicker">OPERATIONAL WARGAME · EUROPE 1944</div>
+    <h1>钢铁洪流</h1>
+    <div class="start-sub">欧 陆 兵 棋 推 演</div>
+    <p class="start-desc">
+      两个巨人隔着平原与山脊对峙。用步兵夺取据点、用装甲撕开防线、用火炮碾碎街垒——
+      在四十个回合内把旗帜插上敌人的首都。金钱、人力与工业，缺一样都撑不起这场战争。
+    </p>
+
+    <div class="choose-label">选择势力</div>
+    <div class="faction-pick four">
+      <button class="pick active" data-force="revolution">
+        <span class="pick-flag rev">✦</span>
+        <span class="pick-name">革命联盟</span>
+        <span class="pick-desc">深红/金 · 全军造价−1 · 首都民兵</span>
+      </button>
+      <button class="pick" data-force="ironblood">
+        <span class="pick-flag iron">✠</span>
+        <span class="pick-name">铁血帝国</span>
+        <span class="pick-desc">黑褐/红 · 装甲双骰取高</span>
+      </button>
+      <button class="pick" data-force="northsea">
+        <span class="pick-flag sea">⚓</span>
+        <span class="pick-name">北海王国</span>
+        <span class="pick-desc">淡红/深蓝 · 舰船降价 + 即动</span>
+      </button>
+      <button class="pick" data-force="iris">
+        <span class="pick-flag iris">⚜</span>
+        <span class="pick-name">鸢尾花共和国</span>
+        <span class="pick-desc">海军蓝/白 · 工事 +1 + 机械化步兵可修</span>
+      </button>
+      <button class="pick" data-force="sunrise">
+        <span class="pick-flag sun">☀</span>
+        <span class="pick-name">日升帝国</span>
+        <span class="pick-desc">棕黄/白 · 双击 · 二击强制反击</span>
+      </button>
+      <button class="pick" data-force="eastland">
+        <span class="pick-flag east">✹</span>
+        <span class="pick-name">东陆共和国</span>
+        <span class="pick-desc">红/米黄 · 人口/工业+ · 民兵机动</span>
+      </button>
+      <button class="pick" data-force="newworld">
+        <span class="pick-flag nw">★</span>
+        <span class="pick-name">新大陆合众国</span>
+        <span class="pick-desc">深蓝/玫红 · 工业+4 · 核打击 · 工厂重装</span>
+      </button>
+    </div>
+
+    <div class="choose-label">难度</div>
+    <div class="diff-pick" id="diffPick">
+      <button data-diff="0">简单<small>敌军收入 -15%</small></button>
+      <button class="active" data-diff="1">普通<small>势均力敌</small></button>
+      <button data-diff="2">困难<small>敌军收入 +18%</small></button>
+    </div>
+
+    <div class="choose-label">选择地图</div>
+    <div class="map-pick" id="mapPick">
+      <button class="active" data-map="training">初始训练地图<small>34 × 24 · 原有战役</small></button>
+      <button data-map="map1">地图1<small>70 × 70 · 湖泊、河网与东部岛屿</small></button>
+      <button data-map="custom" class="map-custom-card">自定义地图<small id="customMapSub">尚无存档 · 点击编辑</small></button>
+    </div>
+    <button class="link-btn map-editor-link" id="btnMapEditor">编辑自定义地图 →</button>
+    <div class="map-ai-note">自定义地图按放置的 AI 首都自动加入多个 AI，最多 5 个；其他地图固定 1 个 AI。</div>
+
+    <div class="start-actions">
+      <button class="btn primary big" id="btnStart">开始战役</button>
+      <button class="btn big" id="btnContinue">继续战役</button>
+      <button class="btn big" id="btnP2P">P2P 联机</button>
+    </div>
+    <button class="link-btn" id="btnHelpStart">查看作战手册 →</button>
+    <div class="start-foot">本地运行 · 支持 PeerJS P2P 联机 · 进度自动保存在浏览器</div>
+  </div>
+</div>
+
+<div id="p2pModal" class="overlay hidden">
+  <div class="modal p2p-modal">
+    <header class="modal-head">
+      <div><div class="modal-kicker">P2P MULTIPLAYER</div><h2>联机对战</h2></div>
+      <button class="x-btn" data-close="p2pModal">×</button>
+    </header>
+    <div class="p2p-connect" id="p2pConnectPanel">
+      <p class="p2p-intro">主机创建房间；客机输入 4 位房间号。先完成国家与战略选择的一方在游戏内后行动。</p>
+      <div class="p2p-roles">
+        <button class="btn primary" id="p2pHostBtn">创建房间</button>
+        <button class="btn" id="p2pJoinBtn">加入房间</button>
+      </div>
+      <div class="p2p-host-box hidden" id="p2pHostBox">
+        <div class="p2p-room" id="p2pRoomCode">房间号：----</div>
+        <button class="btn small" id="p2pShare">复制邀请链接</button>
+      </div>
+      <div class="p2p-join-box hidden" id="p2pJoinBox">
+        <label class="editor-label">房间号<input id="p2pJoinCode" maxlength="4" placeholder="ABCD"></label>
+        <button class="btn primary" id="p2pConnectBtn">连接</button>
+      </div>
+      <details class="p2p-advanced">
+        <summary>高级：PeerServer / TURN 设置</summary>
+        <textarea id="p2pServerConfig" rows="5" placeholder='可选，JSON：{"host":"...","port":443,"path":"/peerjs","secure":true,"config":{"iceServers":[...]}}'></textarea>
+        <button class="btn small" id="p2pSaveConfig">保存设置</button>
+        <button class="btn small" id="p2pClearConfig">恢复默认</button>
+      </details>
+    </div>
+    <div class="p2p-lobby hidden" id="p2pLobby">
+      <div class="p2p-sec">
+        <h3>主机设置</h3>
+        <div id="p2pHostSettings">
+          <label class="editor-label">地图
+            <select id="p2pMap"><option value="training">初始训练地图</option><option value="map1">地图1</option><option value="custom">自定义地图</option></select>
+          </label>
+          <label class="editor-label">主机位置
+            <select id="p2pHostSide"><option value="alliance">西线</option><option value="empire">东线</option></select>
+          </label>
+          <label class="editor-label">先选顺序
+            <select id="p2pPickOrder"><option value="host">主机先选（客机先行动）</option><option value="guest">客机先选（主机先行动）</option></select>
+          </label>
+        </div>
+        <div id="p2pGuestMapInfo" class="p2p-note"></div>
+      </div>
+      <div class="p2p-sec">
+        <h3>国家与战略</h3>
+        <div class="p2p-choice-grid">
+          <label class="editor-label">国家<select id="p2pForce"></select></label>
+          <label class="editor-label">进攻战略<select id="p2pAttack"></select></label>
+          <label class="editor-label">防御战略<select id="p2pDefense"></select></label>
+        </div>
+        <div class="p2p-note" id="p2pChoiceState">选择国家、进攻战略和防御战略后确认。</div>
+        <button class="btn primary" id="p2pChoiceBtn">确认选择</button>
+      </div>
+      <div class="p2p-sec">
+        <div class="p2p-note" id="p2pRoomInfo"></div>
+        <button class="btn primary big" id="p2pStart" disabled>开始联机战役</button>
+      </div>
+    </div>
+    <div class="p2p-status" id="p2pStatus">未连接</div>
+  </div>
+</div>
+
+<div id="strategyModal" class="overlay hidden">
+  <div class="modal strategy-modal">
+    <header class="modal-head">
+      <div>
+        <div class="modal-kicker">STRATEGY</div>
+        <h2>战前战略</h2>
+      </div>
+      <button class="x-btn" data-close="strategyModal">×</button>
+    </header>
+    <p class="strategy-intro">选择一项进攻战略和一项防御战略。AI 会在开战时自行选择。</p>
+    <div class="strategy-group">
+      <h3>进攻战略</h3>
+      <div class="strategy-grid" id="attackStrategies"></div>
+    </div>
+    <div class="strategy-group">
+      <h3>防御战略</h3>
+      <div class="strategy-grid" id="defenseStrategies"></div>
+    </div>
+    <div class="modal-foot">
+      <span id="strategyRes">请选择进攻与防御战略</span>
+      <button class="btn primary" id="btnStrategyConfirm" disabled>开始战役</button>
+      <button class="btn ghost" data-close="strategyModal">返回</button>
+    </div>
+  </div>
+</div>
+
+<div id="enemyStrategyModal" class="overlay hidden">
+  <div class="modal enemy-strategy-modal">
+    <header class="modal-head">
+      <div><div class="modal-kicker">ENEMY STRATEGY</div><h2>敌军战略</h2></div>
+    </header>
+    <p class="strategy-intro">敌军指挥官已经完成战前部署。</p>
+    <div class="strategy-grid" id="enemyStrategyCards"></div>
+    <div class="modal-foot">
+      <span>确认敌情后进入战场</span>
+      <button class="btn primary" id="btnEnemyStrategyOk">进入战场</button>
+    </div>
+  </div>
+</div>
+
+<div id="aiStatusModal" class="overlay hidden">
+  <div class="modal ai-status-modal">
+    <header class="modal-head">
+      <div><div class="modal-kicker">ENEMY INTEL</div><h2 id="aiStatusTitle">AI 状态</h2></div>
+      <button class="x-btn" data-close="aiStatusModal">×</button>
+    </header>
+    <div class="ai-status-body" id="aiStatusBody"></div>
+  </div>
+</div>
+
+<!-- ================= 生产界面 ================= -->
+<div id="buildModal" class="overlay hidden">
+  <div class="modal build-modal">
+    <header class="modal-head">
+      <div>
+        <div class="modal-kicker">PRODUCTION</div>
+        <h2 id="buildTitle">城市生产</h2>
+      </div>
+      <button class="x-btn" data-close="buildModal">×</button>
+    </header>
+    <div class="build-info" id="buildCityInfo"></div>
+    <div class="build-grid" id="buildList"></div>
+    <div class="modal-foot">
+      <span id="buildRes"></span>
+      <button class="btn ghost" data-close="buildModal">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 手册 ================= -->
+<div id="fortModal" class="overlay hidden">
+  <div class="modal build-modal">
+    <header class="modal-head">
+      <div>
+        <div class="modal-kicker">FORTIFICATION</div>
+        <h2 id="fortTitle">构筑工事</h2>
+      </div>
+      <button class="x-btn" data-close="fortModal">×</button>
+    </header>
+    <div class="build-info" id="fortInfo"></div>
+    <div class="build-grid" id="fortList"></div>
+    <div class="modal-foot">
+      <span id="fortRes"></span>
+      <button class="btn ghost" data-close="fortModal">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div id="helpModal" class="overlay hidden">
+  <div class="modal help-modal">
+    <header class="modal-head">
+      <div>
+        <div class="modal-kicker">FIELD MANUAL</div>
+        <h2>作战手册</h2>
+      </div>
+      <button class="x-btn" data-close="helpModal">×</button>
+    </header>
+    <div class="help-body">
+      <section>
+        <h3>胜利条件</h3>
+        <p>标准地图占领敌方首都即刻获胜；多 AI 自定义地图中，玩家首都被攻陷即失败，消灭全部 AI 后获胜。游戏无回合上限。</p>
+      </section>
+      <section>
+        <h3>地图选择</h3>
+        <p>开局可选择「初始训练地图」（34×24）、「地图1」（70×70）或「自定义地图」（20×20 至 50×50）。自定义地图可点击开始界面的「编辑自定义地图」绘制并保存到浏览器；需要玩家首都，并至少放置 1 个 AI 首都，最多支持 5 个 AI + 1 个玩家。</p>
+        <p>地图1中央有湖泊，河流先向东南再向南入海，河上有三座桥，东部有约10格岛屿；湖泊周围有4个中立农村，中立河港位于河流沿岸；岛屿上有1个中立城市和1个中立港口。中立据点每个只保留1支部队，工厂/工业基地为轻型坦克，其余为轻步兵，并驻守在据点格内。</p>
+      </section>
+      <section>
+        <h3>势力</h3>
+        <p><b>革命联盟</b>：单位底板深红、图标金色；全军单位金钱花费 -1（可叠加，最低 1）；每两回合在首都周围获得1名待部署民兵。AI 倾向炮兵优先、约 4 倍火炮数量的步兵、40% 工业装甲/40% 工业火炮，偏好「人海攻势」「纵深防御」。</p>
+        <p><b>铁血帝国</b>：单位底板黑褐、图标红色；轻型坦克/坦克攻击掷 2D6 取高。AI 倾向约 60% 工业用于机械化/装甲部队，并尽量让轻型坦克/坦克/重型坦克达到陆上单位的 40% 以上；偏好「装甲突击」，以装甲快速接敌。</p>
+        <p><b>北海王国</b>：单位底板淡红、图标深蓝；舰船花费 -2，新部署舰船本回合可直接行动。AI 较均衡使用工业，约 30% 工业用于舰船；偏好「火力反制」50%；倾向合成战斗组并争夺港口/水域，用舰船支援陆战。</p>
+        <p><b>鸢尾花共和国</b>：单位底板海军蓝、图标白色；机械化步兵可修工事，每个步兵单位每回合可修 1 个工事。AI 更积极修工事，以步兵/炮兵防守；偏好「坚壁清野」50%；以坦克+步兵缓慢推进并清理后方。</p>
+        <p><b>日升帝国</b>：单位底板棕黄、图标白色；轻步兵/敢死队每回合可攻击两次；第二次攻击若未消灭目标，自身仍会受到反击。AI 约 40% 工业造舰，轻步兵约占陆军 70%，50% 概率选择「人海攻势」，并以轻步兵快速扑向敌方据点。</p>
+        <p><b>东陆共和国</b>：单位底板红色、图标米黄；人口+6、工业+2，民兵/轻步兵移动+1，民兵防御+1并无视地形移动消耗。AI 以步兵为主、约50%工业造炮，偏好「人海攻势」「持久生存」各50%，倾向夹击/包围和协同攻击。</p>
+        <p><b>新大陆合众国</b>：单位底板深蓝、图标玫红；工业+4，工厂可造野战炮/坦克，机场有「战术核打击」。AI 尽量造装甲/火炮/舰船，约45%「优势火力」、45%「空地一体」、80%「火力反制」，并尽量每回合使用机场（优先无人机空袭）。</p>
+        <p>特殊兵种：</p>
+        <ul>
+          <li><b>风暴突击队</b>（帝国）：2-7-4-1，受损 2-6-2-1；5 金/2 人/0 工；首都/城市；攻击有地形/据点/战壕防御加成的目标 +1。</li>
+          <li><b>超重型坦克</b>（帝国）：4-10-2-1，受损 2-9-0-1；16 金/1 人/4 工；工业基地；受损后无法移动。</li>
+          
+          <li><b>动员兵</b>（革命）：2-7-3-1，受损 1-8-2-1；1 金/2 人/0 工；任意据点。</li>
+          <li><b>狙击班组</b>（北海）：2-6-2-2；4 金/1 人/0 工；首都/城市；攻击非机械化步兵 +1，受损即毁。</li>
+          <li><b>导弹支援舰</b>（北海）：3-8-2-5，受损 1-7-1-1；16 金/1 人/4 工；港口；5 格炮击。</li>
+          <li><b>近卫军</b>（鸢尾）：2-8-2-1（受损不变）；6 金/2 人/0 工；首都；对装甲/舰船/要塞炮 +1。</li>
+          <li><b>敢死队</b>（日升）：2-6-3-1，受损 3-3-3-1；4 金/1 人/0 工；农村/工厂/港口。</li>
+          <li><b>突击快船</b>（日升）：2-7-5-1；10 金/2 人/1 工；港口；沉没靠近陆地时可选择登陆敢死队。</li>
+          <li><b>步兵纵队</b>（东陆）：3-7-3-1，受损 2-6-3-1；8 金/4 人/1 工；城市/首都；可受损两次，地形移动消耗 -1。</li>
+          <li><b>实验型机甲</b>（东陆）：3-9-3-1；15 金/0 人/3 工；工业基地；周围6格敌军优先攻击，免疫夹击/包围，受损即毁。</li>
+          <li><b>悬浮坦克</b>（新大陆）：3-7-4-1，受损 3-5-0-1；14 金/1 人/3 工；工业基地；无视丘陵/森林/河流，不能进山地/海洋。</li>
+          <li><b>两栖攻击舰</b>（新大陆）：3-12-1-6，受损 2-8-0-5；32 金/2 人/6 工；港口；6 格远程打击。</li>
+          <li><b>列车炮</b>（铁血）：5-3-1-3；15 金/1 人/3 工；工业基地；2–3 格炮击，不能打 1 格，受损即毁。</li>
+          <li><b>自行火箭炮</b>（革命）：3-4-3-2；10 金/1 人/2 工；工业基地；1–2 格炮击，每回合攻击两个不同目标，受损即毁。</li>
+          <li><b>搭枪卡</b>（革命）：2-5-5-1；4 金/1 人/0 工；可装载周围6格内1名民兵/轻步兵/动员兵，装载时攻防+1；可向周围相邻6格卸载，卸载后双方仍可行动/攻击；被击毁原地释放。</li>
+          <li><b>海军陆战队</b>（北海）：2-6-3-1，受损 1-6-3-1；5 金/1 人/1 工；城市/港口；无视河流，可进入海洋，水陆转换只移动1格。</li>
+          <li><b>督战队</b>（鸢尾）：1-4-3-1；2 金/1 人/0 工；周围6格步兵防御+1，不叠加。</li>
+          <li><b>步兵坦克</b>（鸢尾）：2-9-3-1，受损 1-8-1-1；12 金/1 人/2 工；可与1个步兵堆叠，双方攻防+1，敌军优先攻击坦克。</li>
+          <li><b>摩托闪击队</b>（日升）：2-6-4-1，受损 1-5-4-1；4 金/2 人/1 工；无视森林移动消耗。</li>
+          <li><b>游击队</b>（东陆）：1-7-4-1，受损 1-6-4-1；5 金/3 人/0 工；每回合可花费1金，在自身周围6格内选择空位生产1个民兵；在农村及农村周围6格内防御+1。</li>
+          <li><b>基因改造战士</b>（新大陆）：2-7-3-1，受损不变；8 金/1 人/2 工；被攻击时对方掷2次取低，阵亡对攻击者造成2+1D6。</li>
+        </ul>
+        <p>生产界面只显示本国特殊兵种，不显示其他势力特殊单位。</p>
+      </section>
+      <section>
+        <h3>三种资源</h3>
+        <ul>
+          <li><b>金钱</b>：库存，由城市、农村、工厂、工业基地、港口共同产出，用于生产部队。</li>
+          <li><b>人力上限</b>：只由城市提供，每支存活部队按编制占用人力；部队被击毁后占用自动释放。</li>
+          <li><b>工业上限</b>：只由工厂、工业基地、港口提供，坦克、火炮等重装备按编制占用工业。</li>
+          <li><b>部队维护费</b>：装甲/舰艇按造价1/5、步兵/火炮按造价1/10计算（四舍五入），民兵免维护；每回合从金钱产出中扣除。</li>
+          <li>生产条件：金钱足够 + 人力余量足够 + 工业余量足够；普通据点每回合只能生产 1 支，首都每回合可生产 2 支。</li>
+          <li>生产完成后可在据点本身及周围六格选择空位部署。</li>
+          <li>新生产/部署的单位本回合不能移动、攻击、协同或待机。</li>
+          <li>产出：首都 6 金 / 8 人力 / 2 工业；城市 4 金 / 5 人力 / 1 工业；农村 1 金 / 1 人力；工厂 1 金 / 3 工业；工业基地 2 金 / 6 工业；港口 2 金 / 2 工业。</li>
+        </ul>
+      </section>
+      <section>
+        <h3>部署限制</h3>
+        <ul>
+          <li><b>民兵</b>：首都 / 城市 / 农村。</li>
+          <li><b>轻步兵</b>：农村 / 城市 / 工厂 / 工业基地 / 港口。</li>
+          <li><b>无人机班组</b>：首都 / 城市 / 工厂 / 工业基地。</li>
+          <li><b>机械化步兵、重型坦克、野战炮</b>：工厂 / 工业基地；<b>轻型坦克</b>：首都 / 工厂 / 工业基地；<b>步兵炮</b>：农村 / 城市 / 工厂 / 工业基地。</li>
+          <li><b>坦克、重型坦克</b>：工厂 / 工业基地；<b>自行火炮、自行火箭炮</b>：工业基地。</li>
+          <li><b>狙击班组</b>：首都/城市；<b>导弹支援舰</b>：港口；<b>近卫军</b>：仅首都；<b>列车炮</b>：工业基地；<b>敢死队</b>：农村/工厂/港口；<b>突击快船</b>：港口；<b>步兵纵队</b>：城市/首都；<b>实验型机甲</b>：工业基地；<b>悬浮坦克</b>：工业基地；<b>两栖攻击舰</b>：港口；<b>超重型坦克</b>：工业基地。</li>
+          <li><b>风暴突击队</b>：首都/城市；<b>动员兵</b>：任意据点。</li>
+          <li><b>战斗驳船、炮艇</b>：只能港口，且从港口旁的水域下水；玩家生产时自行选择具体海域格。</li>
+          <li>舰船只能在水域（河流/海洋）移动，不能上岸，但可以攻击陆上单位；陆军也能从岸边攻击舰船。</li>
+          <li>农村可生产民兵、轻步兵与步兵炮；机场不能生产部队；其余据点按上述部署规则生产。</li>
+          <li><b>所有陆上单位</b>都可以进入并占领敌方据点；舰船不能上岸，因此不能占领据点。</li>
+        </ul>
+      </section>
+      <section>
+        <h3>兵种分类</h3>
+        <p>所有通用兵种与特殊兵种分为四类：</p>
+        <ul>
+          <li><b>步兵</b>：民兵、轻步兵、无人机班组、机械化步兵、风暴突击队、动员兵、狙击班组、近卫军、敢死队、步兵纵队。</li>
+          <li><b>火炮</b>：步兵炮、野战炮、自行火炮、自行火箭炮、列车炮、要塞炮。</li>
+          <li><b>装甲</b>：轻型坦克、坦克、重型坦克、超重型坦克、实验型机甲、悬浮坦克。</li>
+          <li><b>舰艇</b>：炮艇、战斗驳船、导弹支援舰、突击快船、两栖攻击舰。</li>
+        </ul>
+      </section>
+      <section>
+        <h3>单位与状态</h3>
+        <p>单位属性写作 <b>攻-防-移-射</b>，例如 <b>2-6-3-1</b> 表示攻击 2、防御 6、移动 3、射程 1。单位只有 <b>满编</b> 与 <b>受损</b> 两种状态：</p>
+        <ul>
+          <li>大部分单位受损后进入“受损”状态，属性下降（卡片上会显示受损后的数值）；再被命中一次即被击毁。</li>
+          <li>无人机班组、狙击班组、步兵炮、野战炮、自行火箭炮、列车炮、突击快船、实验型机甲等属于脆弱单位，命中一次直接移出战场。</li>
+          <li>受损单位在可生产该单位的我方据点待命，下回合恢复1格受损条。</li>
+          <li><b>轻步兵轻装特性</b>：除河流、海洋外，森林/丘陵/山地等地形的移动消耗都按 1 计算。</li>
+        </ul>
+      </section>
+      <section>
+        <h3>行动</h3>
+        <ul>
+          <li>每个单位每回合只能行动一次。行动后单位会盖上一层阴影；已移动但还能攻击的单位顶部有一条琥珀色标记。</li>
+          <li><b>移动穿透</b>：可以穿过友军单位（要塞炮除外），但不能穿过敌军；不能停在友军格上（桥梁叠放除外）。移动结束后若攻击范围内没有敌军，自动进入行动完毕的阴影状态。</li>
+          <li><b>移动</b>：按移动力移动，之后可以攻击或协同攻击。</li>
+          <li><b>攻击</b>：攻击射程内的敌人。</li>
+          <li><b>协同攻击</b>：本回合不攻击，指定射程内一个敌方单位；友军攻击该目标时 +1 攻击修正，多支协同可叠加，但每支每回合只生效一次；受损条仅剩1格的单位不能协同（原本只有1格的脆弱单位除外）。</li>
+          <li><b>易位</b>：与一支友军交换位置，要求双方移动力都足够到达对方位置；易位后双方不能再移动，但可以攻击。</li>
+          <li><b>待命</b>：不移动、不攻击，跳过本次行动，并获得 <b>防御 +1</b>（不可叠加），持续到该单位下回合开始；单位卡与地图上的蓝色小点会标出该状态。</li>
+          <li>每个单位每回合只能反击本回合受到的 <b>第一次</b> 近战攻击。</li>
+        </ul>
+      </section>
+      <section>
+        <h3>战斗判定</h3>
+        <ul>
+          <li>攻击结算：<b>攻方基础攻击 + 1D6 + 地形攻修 + 额外修正 − 守方基础防御 − 地形防修 − 额外修正</b>，结果 <b>≥ 0</b> 即命中（也就是掷出的点数 ≥ 守方总防御 − 攻方总攻击）。</li>
+          <li>普通单位有 3 格受损条（满编→受损→再次受损→击毁）；民兵、战斗驳船、导弹支援舰为 2 格；脆弱单位命中即移除。</li>
+          <li>守方射程覆盖 1 格时，遭贴身攻击会按同一公式反击；无论攻击是否命中都会反击，反击同样掷 1D6。守方被击毁则不反击。</li>
+          <li>野战炮、自行火炮可在 1–2 格开火；炮艇也可在 1–2 格开火，贴身时会被反击。</li>
+          <li>额外修正：守方每有一支额外的相邻友军，攻方攻击力 +1，最多 +2（侧翼包夹）。</li>
+          <li>地形攻修目前均为 0；地形防修：平原 0、森林 +1、丘陵 +1、河流 0、山地 +2；据点额外防御 +1～+4。</li>
+          <li>悬停敌军可看到“攻 X + 1D6 ≥ 防 Y · 需掷 N+ · 命中率 · 反击率”。</li>
+        </ul>
+      </section>
+      <section>
+        <h3>战线状态</h3>
+        <ul>
+          <li><b>夹击</b>：左右（正西/正东）、左上右下（西北/东南）、左下右上（西南/东北）——任意一条对穿线两端都有敌军，防御 −1。</li>
+          <li><b>包围</b>：单位六个相邻方向全部被敌军占据，攻击 −1、防御 −2。</li>
+          <li>包围是比夹击更强的一档，不叠加（不会变成防御 −3）；加成会同时作用于攻击与反击。</li>
+          <li>受影响的单位外圈会显示虚线圈（琥珀＝夹击，红色＝包围），单位卡与悬停提示会写明修正。</li>
+        </ul>
+      </section>
+      <section>
+        <h3>地形与据点</h3>
+        <p>地形提供防御附加值：平原 +0、森林 +1、丘陵 +1、河流 +0、山地 +2（重型装甲车辆无法进入；轻型坦克可进入）。据点防御：首都/城市 +2，农村 +1，工厂/工业基地 +2，港口 +1，机场 +2。据点同时提供金钱与人力或工业上限。</p>
+        <p>河流上架有<b>桥梁</b>：桥梁是河流格上的特殊地格，移动消耗 1，地图南北各一座。桥梁只与直接连接两端的陆地格互通，不能从侧面进入其他相邻陆地或水域/河流；攻击目标仍可选择相邻地格。</p>
+        <p><b>水陆转换</b>：从陆地进入河流/水域，或从水域登陆陆地后，本回合不能再移动，但可以继续攻击。</p>
+        <p><b>河滩惩罚</b>：陆上单位停留在普通河流/海洋格时，攻击与防御临时 −1（最低 1）；桥梁和舰船不受影响。</p>
+        <p><b>桥梁叠放</b>：桥梁格可同时停留一支陆上单位和一支舰船；点击同格循环选择单位，绘制时两者错开。</p>
+      </section>
+
+      <section>
+        <h3>机场任务</h3>
+        <p>机场不提供收入，基础每回合执行 2 次任务（空地一体为 3 次），任务消耗金钱：</p>
+        <ul>
+          <li><b>无人机干扰</b>：花费 4，射程 0–4，使一名非我方单位（含中立）下回合无法行动。</li>
+          <li><b>空降作战</b>：花费 6，射程 0–6，在范围内空地投放一名轻步兵，需要 2 人力余量；每个机场每回合最多空降一次，空降单位当回合不能行动。</li>
+          <li><b>空投补给</b>：花费 6，射程 0–8，恢复范围内一名我方受损单位 1 格受损条。</li>
+          <li><b>无人机空袭</b>：花费 8，射程 0–8，对一名非我方单位（含中立）造成 4+1D6 伤害。</li>
+          <li><b>战术轰炸</b>：花费 14，射程 3–10，对一名非我方单位（含中立）造成 6+1D6 伤害；按当前两态制视为足以击毁目标。</li>
+          <li><b>战术核打击</b>（新大陆）：花费 20，射程 5–12，摧毁目标格敌军与工事，无视防空，对周围6格所有单位（含友军）造成 1D6 伤害；每座机场6回合一次。</li>
+        </ul>
+        <p>机场可被陆上单位占领；被占领后由新主人使用。地图上有白港机场、黑堡机场。</p>
+      </section>
+
+      <section>
+        <h3>可建造工事</h3>
+        <p>除无人机班组、狙击班组外的所有步兵单位都能构筑工事；每个单位每回合最多 1 个，总数无上限；要塞炮仍每回合最多 1 个。建造后该单位本回合不能再行动。</p>
+        <ul>
+          <li><b>地雷</b>（4）：敌军停留时造成 2+1D6 伤害，随后消失；友军不触发。</li>
+          <li><b>铁丝网</b>（2）：强制敌方步兵停留，本回合无法攻击、下回合无法移动，随后消失。</li>
+          <li><b>反坦克锥</b>（2）：强制敌方装甲单位停留，本回合无法攻击、下回合无法移动，随后消失。</li>
+          <li><b>战壕</b>（5）：该格友军防御 +1，被敌军占领后消失。</li>
+          <li><b>防空阵地</b>（10）：中心 2 格内地格与友军不会被敌方机场任务选中，被敌军占领后消失。</li>
+          <li><b>要塞炮</b>（16）：固定炮台，封锁所在格，攻击 2–3 格，开火后下一回合不能攻击。</li>
+        </ul>
+        <p>地雷/战壕/防空阵地可建在自身格或周围 6 格；铁丝网/反坦克锥/要塞炮只能建在周围 6 格。工事不能建在水域、河流、桥梁或据点上。</p>
+      </section>
+
+      <section>
+        <h3>战略选择</h3>
+        <p>开局前选择一项进攻战略与一项防御战略，AI 会自行随机选择；确认后会弹出敌军战略简报。</p>
+        <p>游戏中顶部「AI 状态」按钮可查看 AI 的金钱/收入、人口与工业上限及占用、各类据点数量、已部署兵力与战略。</p>
+        <ul>
+          <li><b>人海攻势</b>：人口上限 +6；每四回合（第1、5、9…回合）获得 2 名待部署民兵，由玩家选择据点及周围位置部署；AI 自动部署。</li>
+          <li><b>装甲突击</b>：机械化步兵、轻型坦克、坦克移动 +1。</li>
+          <li><b>空地一体</b>：每座机场每回合 +1 次任务，所有机场任务射程 +1。</li>
+          <li><b>优势火力</b>：步兵炮、野战炮花费 -1，工业占用 -1。</li>
+          <li><b>坚壁清野</b>：工事花费 -1、战壕防御 +2。</li>
+          <li><b>纵深防御</b>：据点周围六格获得据点防御；敌军占点时受 1D6 伤害。</li>
+          <li><b>持久生存</b>：每回合 +3 金钱，人口/工业 +1；受损单位在可生产该单位的据点内，下回合恢复1格受损条，无需待命。</li>
+          <li><b>火力反制</b>：步兵炮/野战炮攻防 +1；我方反击次数 +1。</li>
+        </ul>
+      </section>
+      <section>
+        <h3>操作</h3>
+        <p>左键选择 / 移动 / 攻击 · 拖动平移 · 滚轮缩放 · 空格结束回合 · Tab 切换待命部队 · Esc 取消选择 · 「⛶」回到全图视野。移动后仍有可攻击目标且未攻击时可撤销移动；无目标自动结束行动后不可撤销。</p>
+      </section>
+      <section>
+        <h3>兵种一览</h3>
+        <div class="unit-table" id="helpUnitTable"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 自定义地图编辑器 ================= -->
+<div id="mapEditor" class="overlay hidden">
+  <div class="modal map-editor-modal">
+    <header class="modal-head">
+      <div>
+        <div class="modal-kicker">CUSTOM MAP</div>
+        <h2>自定义地图编辑器</h2>
+      </div>
+      <button class="x-btn" id="btnMapEditorClose">×</button>
+    </header>
+    <div class="map-editor-layout">
+      <div class="map-editor-tools">
+        <label class="editor-label">地图名称
+          <input id="customMapName" maxlength="20" value="我的地图">
+        </label>
+        <div class="editor-size-row">
+          <label class="editor-label">宽
+            <input id="customMapW" type="number" min="20" max="50" value="32">
+          </label>
+          <label class="editor-label">高
+            <input id="customMapH" type="number" min="20" max="50" value="22">
+          </label>
+          <button class="btn small" id="btnResizeMap">应用尺寸</button>
+        </div>
+        <div class="tool-title">本地已保存地图</div>
+        <select id="customMapLibrary" class="editor-wide"></select>
+        <div class="tool-buttons">
+          <button id="btnLoadMap">读取并选用</button>
+          <button id="btnNewMap">新建地图</button>
+          <button id="btnDeleteMap">删除存档</button>
+        </div>
+        <div class="tool-title">地形笔刷</div>
+        <div class="tool-buttons" id="terrainTools">
+          <button data-terrain="plains" class="active">平原</button>
+          <button data-terrain="forest">森林</button>
+          <button data-terrain="hills">丘陵</button>
+          <button data-terrain="mountain">山地</button>
+          <button data-terrain="river">河流</button>
+          <button data-terrain="water">海洋</button>
+          <button data-terrain="bridge">桥梁</button>
+        </div>
+        <div class="tool-title">据点</div>
+        <label class="editor-label">阵营
+          <select id="customFaction">
+            <option value="alliance">玩家（西线）</option>
+            <option value="empire">AI 1（东线）</option>
+            <option value="ai3">AI 2</option>
+            <option value="ai4">AI 3</option>
+            <option value="ai5">AI 4</option>
+            <option value="ai6">AI 5</option>
+            <option value="">中立</option>
+          </select>
+        </label>
+        <label class="editor-label">类型
+          <select id="customSiteKind">
+            <option value="capital">首都</option>
+            <option value="city">城市</option>
+            <option value="village">农村</option>
+            <option value="factory">工厂</option>
+            <option value="industrial_base">工业基地</option>
+            <option value="port">港口</option>
+            <option value="airport">机场</option>
+          </select>
+        </label>
+        <button class="btn small primary" id="btnPlaceSite">放置据点</button>
+        <button class="btn small" id="btnEraseSite">删除据点</button>
+        <div class="tool-title">操作</div>
+        <button class="btn small" id="btnClearMap">清空地图</button>
+        <button class="btn small primary" id="btnSaveMap">保存地图</button>
+        <button class="btn small primary" id="btnSaveMapUse">保存并选用</button>
+        <div class="map-editor-hint" id="mapEditorHint">选择地形笔刷后点击地图；据点需先选好阵营和类型。</div>
+      </div>
+      <div class="map-editor-stage">
+        <canvas id="mapEditorCanvas"></canvas>
+        <div class="map-editor-legend"><span id="mapEditorSizeLabel">地图尺寸 32 × 22</span> · 最多 5 个 AI · 需玩家首都 + 至少 1 个 AI 首都</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 结局 ================= -->
+<div id="endScreen" class="overlay hidden">
+  <div class="end-card">
+    <div class="end-kicker" id="endKicker">CAMPAIGN COMPLETE</div>
+    <h1 id="endTitle">胜利</h1>
+    <p id="endReason"></p>
+    <div class="end-stats" id="endStats"></div>
+    <div class="end-actions">
+      <button class="btn primary" id="btnAgain">再战一场</button>
+      <button class="btn ghost" id="btnBackMenu">返回主菜单</button>
+    </div>
+  </div>
+</div>
+
+<div id="tooltip" class="tooltip hidden"></div>
+
+<script src="js/core/data.js"></script>
+<script src="js/core/hex.js"></script>
+<script src="js/core/game.js"></script>
+<script src="js/core/rules.js"></script>
+<script src="js/core/ai.js"></script>
+<script src="js/vendor/peerjs.min.js"></script>
+<script src="js/net.js"></script>
+<script src="js/render.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>
